@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pre_order_purchase,pre.order.purchase,model_pre_order_purchase,base.group_erp_manager,1,1,1,1
+access_table_pre_order,table.pre.order,model_table_pre_order,base.group_erp_manager,1,1,1,1

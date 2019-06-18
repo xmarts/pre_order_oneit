@@ -1,0 +1,124 @@
+<odoo>
+  <data>
+
+
+
+    <record model="ir.ui.view" id="pre_order_oneit.list">
+      <field name="name">pre_order_oneit list</field>
+      <field name="model">pre.order.purchase</field>
+      <field name="arch" type="xml">
+        <tree>
+          <field name="name"/>
+          <field name="partner_id"/>
+          <field name="fecha"/>
+        </tree>
+      </field>
+    </record>
+    <record model="ir.ui.view" id="pre_order_oneit.form">
+      <field name="name">pre_order_oneit form</field>
+      <field name="model">pre.order.purchase</field>
+      <field name="arch" type="xml">
+        <form>
+          <header></header>
+          <sheet>
+            <group>
+              <group colspan="4" cols="4">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="fecha"/>
+                <field name="currency_id"/>
+                <field name="archivo" readonly="0" widget="binary" string="Archivo de pedido" filename="filename"/>
+                <field name="filename" invisible="1"/>
+              </group>
+            </group>
+            <notebook>
+              <page>
+                <field name="pre_order_ids" >
+                  <tree editable="buttom">
+                    <field name="product_id" />
+                    <field name="name" />
+                    <field name="product_type" />
+                    <field name="product_qty" />
+                    <field name="product_uom" />
+                    <field name="price_unit" />
+                    <field name="taxes_id" />
+                    <field name="price_subtotal" />
+                    <field name="price_total" />
+                    <field name="pre_order_id" invisible="1" />
+                    <field name="currency_id" invisible="1" />
+                    <field name="partner_id" invisible="1" />
+                  </tree>
+                </field>
+              </page>
+            </notebook>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record model="ir.actions.act_window" id="pre_order_oneit.action_window">
+      <field name="name">Pre Orden</field>
+      <field name="res_model">pre.order.purchase</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_pre_order_management" name="Pre Orden"
+            parent="purchase.menu_procurement_management" sequence="1" action="pre_order_oneit.action_window" />
+    <!-- explicit list view definition -->
+    <!--
+    <record model="ir.ui.view" id="pre_order_oneit.list">
+      <field name="name">pre_order_oneit list</field>
+      <field name="model">pre_order_oneit.pre_order_oneit</field>
+      <field name="arch" type="xml">
+        <tree>
+          <field name="name"/>
+          <field name="value"/>
+          <field name="value2"/>
+        </tree>
+      </field>
+    </record>
+    -->
+
+    <!-- actions opening views on models -->
+    <!--
+    <record model="ir.actions.act_window" id="pre_order_oneit.action_window">
+      <field name="name">pre_order_oneit window</field>
+      <field name="res_model">pre_order_oneit.pre_order_oneit</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+    -->
+
+    <!-- server action to the one above -->
+    <!--
+    <record model="ir.actions.server" id="pre_order_oneit.action_server">
+      <field name="name">pre_order_oneit server</field>
+      <field name="model_id" ref="model_pre_order_oneit_pre_order_oneit"/>
+      <field name="state">code</field>
+      <field name="code">
+        action = {
+          "type": "ir.actions.act_window",
+          "view_mode": "tree,form",
+          "res_model": self._name,
+        }
+      </field>
+    </record>
+    -->
+
+    <!-- Top menu item -->
+    <!--
+    <menuitem name="pre_order_oneit" id="pre_order_oneit.menu_root"/>
+    -->
+    <!-- menu categories -->
+    <!--
+    <menuitem name="Menu 1" id="pre_order_oneit.menu_1" parent="pre_order_oneit.menu_root"/>
+    <menuitem name="Menu 2" id="pre_order_oneit.menu_2" parent="pre_order_oneit.menu_root"/>
+    -->
+    <!-- actions -->
+    <!--
+    <menuitem name="List" id="pre_order_oneit.menu_1_list" parent="pre_order_oneit.menu_1"
+              action="pre_order_oneit.action_window"/>
+    <menuitem name="Server to list" id="pre_order_oneit" parent="pre_order_oneit.menu_2"
+              action="pre_order_oneit.action_server"/>
+    -->
+  </data>
+</odoo>
