@@ -2,6 +2,9 @@
 
 from odoo import models, fields, api, _
 from odoo.addons import decimal_precision as dp
+import xlrd
+import tempfile
+import binascii
 
 class TableOrder(models.Model):
 	_name="table.pre.order"
@@ -84,3 +87,17 @@ class PreOrderONEIT(models.Model):
 		default=lambda self: self.env.user.company_id.currency_id.id)
 	filename = fields.Char('File Name')
 	pre_order_ids = fields.One2many("table.pre.order","pre_order_id",string="Lineas de pedido")
+
+	@api.multi
+	def your_method(self):
+		fp = tempfile.NamedTemporaryFile(suffix=".xlsx")
+		fp.write(binascii.a2b_base64(self.archivo))
+		fp.seek(0)
+		workbook = xlrd.open_workbook(fp.name)
+		sheet = workbook.sheet_by_index(0)
+		for row_no in range(sheet.nrows):
+			if row_no <= 0:
+				fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
+			else:
+				line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
+				print ("==========",line)  # in this line variable you get the value line by line from excel.

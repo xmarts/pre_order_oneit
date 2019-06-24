@@ -19,7 +19,9 @@
       <field name="model">pre.order.purchase</field>
       <field name="arch" type="xml">
         <form>
-          <header></header>
+          <header>
+            <button name="your_method" type="object" string="Test" />
+          </header>
           <sheet>
             <group>
               <group colspan="4" cols="4">
