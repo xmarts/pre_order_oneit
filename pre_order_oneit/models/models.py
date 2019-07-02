@@ -74,6 +74,24 @@ class TableOrder(models.Model):
 			'partner': self.order_id.partner_id,
 		}
 
+class TableProducts(models.Model):
+	_name = "table.product.temp"
+	_description = "Tabla de productos a cargar"
+	
+	name = fields.Char(string="Descripción")
+	type = fields.Selection([('consu','Consumible'),('service','Servicio'),('product','Almacenable')], default="product", string="Tipo")
+	categoria = fields.Many2one("product.category",string="Categoria")
+	referencia = fields.Char(string="Referencia Interna")
+	barcode = fields.Char(string="Codigo de barras")
+	list_price = fields.Float(string="Precio de venta")
+	marca = fields.Char(string="Marca")
+	modelo = fields.Char(string="Modelo")
+	taxes_id = fields.Many2many("account.tax", string="Impuestos Cliente")
+	taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor")
+	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega")
+	product_id = fields.Many2one("product.product", string="Producto")
+	pre_order_id = fields.Many2one("pre.order.purchase")
+
 
 class PreOrderONEIT(models.Model):
 	_name = "pre.order.purchase"
@@ -86,6 +104,7 @@ class PreOrderONEIT(models.Model):
 	currency_id = fields.Many2one('res.currency', 'Currency', required=True,
 		default=lambda self: self.env.user.company_id.currency_id.id)
 	filename = fields.Char('File Name')
+	pre_product_ids = fields.One2many("table.product.temp","pre_order_id",string="Productos")
 	pre_order_ids = fields.One2many("table.pre.order","pre_order_id",string="Lineas de pedido")
 
 	@api.multi

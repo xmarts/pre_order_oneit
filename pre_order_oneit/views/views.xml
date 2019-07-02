@@ -34,7 +34,26 @@
               </group>
             </group>
             <notebook>
-              <page>
+              <page string="Productos">
+                <field name="pre_product_ids" >
+                  <tree editable="buttom">
+                    <field name="name" />
+                    <field name="type" />
+                    <field name="categoria" />
+                    <field name="referencia" />
+                    <field name="barcode" />
+                    <field name="list_price" />
+                    <field name="marca" />
+                    <field name="modelo" />
+                    <field name="taxes_id" widget="many2many_tags" />
+                    <field name="taxes_pro_id" widget="many2many_tags"/>
+                    <field name="route_ids" widget="many2many_tags"/>
+                    <field name="product_id" invisible="1" />
+                    <field name="pre_order_id" invisible="1" />
+                  </tree>
+                </field>
+              </page>
+              <page string="Lineas de Pedido">
                 <field name="pre_order_ids" >
                   <tree editable="buttom">
                     <field name="product_id" />
