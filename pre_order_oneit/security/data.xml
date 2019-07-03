@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="default_provider_pre_order" model="res.partner">
+        <field name="name">Proveedor Pendiente</field>
+        <field name="company_type">person</field>
+        <field eval="True" name="supplier"/>
+        <field eval="False" name="customer"/>
+    </record>
+</odoo>

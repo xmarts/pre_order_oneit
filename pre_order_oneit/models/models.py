@@ -5,6 +5,7 @@ from odoo.addons import decimal_precision as dp
 import xlrd
 import tempfile
 import binascii
+from odoo.exceptions import ValidationError
 
 class TableOrder(models.Model):
 	_name="table.pre.order"
@@ -42,6 +43,7 @@ class TableOrder(models.Model):
 		if product_lang.description_purchase:
 			self.name += '\n' + product_lang.description_purchase
 
+
 		return result
 
 	@api.depends('product_qty', 'price_unit', 'taxes_id')
@@ -68,27 +70,33 @@ class TableOrder(models.Model):
 		self.ensure_one()
 		return {
 			'price_unit': self.price_unit,
-			'currency_id': self.order_id.currency_id,
+			'currency_id': self.pre_order_id.currency_id,
 			'product_qty': self.product_qty,
 			'product': self.product_id,
-			'partner': self.order_id.partner_id,
+			'partner': self.pre_order_id.partner_id,
 		}
 
 class TableProducts(models.Model):
 	_name = "table.product.temp"
 	_description = "Tabla de productos a cargar"
-	
+
+	@api.model
+	def _default_sale_taxes(self):
+		return 	self.env['account.tax'].search([('name', '=', ['IVA(16%) VENTAS'])]).ids
+
+
 	name = fields.Char(string="Descripción")
 	type = fields.Selection([('consu','Consumible'),('service','Servicio'),('product','Almacenable')], default="product", string="Tipo")
 	categoria = fields.Many2one("product.category",string="Categoria")
 	referencia = fields.Char(string="Referencia Interna")
 	barcode = fields.Char(string="Codigo de barras")
 	list_price = fields.Float(string="Precio de venta")
-	marca = fields.Char(string="Marca")
-	modelo = fields.Char(string="Modelo")
-	taxes_id = fields.Many2many("account.tax", string="Impuestos Cliente")
-	taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor")
-	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega")
+	standard_price = fields.Float(string="Precio de compra")
+	# marca = fields.Char(string="Marca")
+	# modelo = fields.Char(string="Modelo")
+	taxes_id = fields.Many2many("account.tax", string="Impuestos Cliente", default=_default_sale_taxes)
+	#taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor", default=lambda self: self.env['account.tax'].search([('name', '=', ['IVA(16%) COMPRAS'])]).ids)
+	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega", default=lambda self: self.env['stock.location.route'].search([('name', '=', ['Comprar'])]).ids)
 	product_id = fields.Many2one("product.product", string="Producto")
 	pre_order_id = fields.Many2one("pre.order.purchase")
 
@@ -107,16 +115,156 @@ class PreOrderONEIT(models.Model):
 	pre_product_ids = fields.One2many("table.product.temp","pre_order_id",string="Productos")
 	pre_order_ids = fields.One2many("table.pre.order","pre_order_id",string="Lineas de pedido")
 
+	# @api.multi
+	# def create_sale_lines(self):
+
+
 	@api.multi
-	def your_method(self):
-		fp = tempfile.NamedTemporaryFile(suffix=".xlsx")
-		fp.write(binascii.a2b_base64(self.archivo))
-		fp.seek(0)
-		workbook = xlrd.open_workbook(fp.name)
-		sheet = workbook.sheet_by_index(0)
-		for row_no in range(sheet.nrows):
-			if row_no <= 0:
-				fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
-			else:
-				line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
-				print ("==========",line)  # in this line variable you get the value line by line from excel.
+	def create_update_products(self):
+		for rec in self:
+			for x in rec.pre_product_ids:
+				if not x.product_id:
+					taxes = []
+					for t in x.taxes_id:
+						taxes.append(t.id)
+					routes = []
+					for r in x.route_ids:
+						routes.append(r.id)
+					pro = self.env['product.product'].create({
+						'name':x.name,
+						'type':x.type,
+						'categ_id':x.categoria.id,
+						'default_code':x.referencia,
+						'barcode':x.barcode,
+						'list_price':x.list_price,
+						'standard_price':x.standard_price,
+						'taxes_id':[(6, 0, taxes)],
+						'route_ids':[(6, 0, routes)],
+						})
+					x.product_id = pro.id
+					print("Template del producto: ", x.product_id.product_tmpl_id.id)
+					sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
+					supp = x.product_id.seller_ids.create({
+						'name': sup.id,
+						'product_tmpl_id': pro.product_tmpl_id.id,
+						'min_qty': 1,
+						'price':pro.list_price,
+						})
+				if x.product_id:
+					taxes = []
+					for t in x.taxes_id:
+						taxes.append(t.id)
+					routes = []
+					for r in x.route_ids:
+						routes.append(r.id)
+					x.product_id.name = x.name
+					x.product_id.type = x.type
+					x.product_id.categ_id = x.categoria.id
+					x.product_id.default_code = x.referencia
+					x.product_id.barcode = x.barcode
+					x.product_id.list_price = x.list_price
+					x.product_id.standard_price = x.standard_price
+					x.product_id.taxes_id = [(6, 0, taxes)]
+					x.product_id.route_ids = [(6, 0, routes)]
+
+	@api.multi
+	def charge_products(self):
+		for rec in self:
+			for x in rec.pre_order_ids:
+				x.unlink()
+			fp = tempfile.NamedTemporaryFile(suffix=".xlsx")
+			fp.write(binascii.a2b_base64(rec.archivo))
+			fp.seek(0)
+			workbook = xlrd.open_workbook(fp.name)
+			sheet = workbook.sheet_by_index(0)
+			for row_no in range(sheet.nrows):
+				if row_no <= 0:
+					fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
+				else:
+					line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
+					print ("==========",str(line[2]))
+					pro = self.env['product.product']
+					r = str(line[4])
+					m = str(line[0])
+					if pro.search([('default_code','=',r[2:-1])], limit=1):
+						producto = pro.search([('default_code','=',r[2:-1])], limit=1)
+						if m[2:-1] == 'F':
+							rec.pre_order_ids.create({
+								'product_id': producto.id,
+								'product_type':producto.type,
+								'product_qty':line[6],
+								'product_uom':producto.uom_id.id,
+								'price_unit':producto.list_price,
+								'name':producto.name,
+								'taxes_id':[(6, 0, producto.taxes_id.ids)],
+								'pre_order_id': rec.id,
+								})
+						else:
+							rec.pre_order_ids.create({
+								'product_id': producto.id,
+								'product_type':producto.type,
+								'product_qty':line[6],
+								'product_uom':producto.uom_id.id,
+								'price_unit':0,
+								'name':producto.name,
+								'taxes_id':[(6, 0, producto.taxes_id.ids)],
+								'pre_order_id': rec.id,
+								})
+					else:
+						raise ValidationError(
+							_('El producto ' +str(line[5])+ ' no ha sido creado'))
+
+	@api.multi
+	def products_temp_view(self):
+		for rec in self:
+			for x in rec.pre_product_ids:
+				x.unlink()
+			fp = tempfile.NamedTemporaryFile(suffix=".xlsx")
+			fp.write(binascii.a2b_base64(rec.archivo))
+			fp.seek(0)
+			workbook = xlrd.open_workbook(fp.name)
+			sheet = workbook.sheet_by_index(0)
+			for row_no in range(sheet.nrows):
+				if row_no <= 0:
+					fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
+				else:
+					line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
+					print ("==========",str(line[2]))  # in this line variable you get the value line by line from excel.
+					cat_id = False
+					cat = self.env['product.category']
+					pro = self.env['product.product']
+					c = str(line[3])
+					r = str(line[4])
+					if pro.search([('default_code','=',r[2:-1])], limit=1):
+						p = pro.search([('default_code','=',r[2:-1])], limit=1)
+						self.pre_product_ids.create({
+						'name': p.name,
+						'referencia': p.default_code,
+						'barcode': p.barcode,
+						'categoria': p.categ_id.id,
+						'list_price': p.list_price,
+						'standard_price': p.standard_price,
+						'taxes_id':[(6, 0, p.taxes_id.ids)],
+						'route_ids':[(6, 0, p.route_ids.ids)],
+						'pre_order_id': rec.id,
+						'product_id': p.id,
+						})
+					else:
+						if cat.search([('name','=',c[2:-1])], limit=1):
+							cat_id = cat.search([('name','=',c[2:-1])], limit=1)
+						else:
+							cat_id = cat.create({
+								'name': c[2:-1],
+								'property_cost_method':'standard',
+								'property_valuation':'manual_periodic'
+								})
+						self.pre_product_ids.create({
+						'name': line[5],
+						'referencia': line[4],
+						'barcode': line[2],
+						'categoria': cat_id.id,
+						'list_price': float(line[7]),
+						'standard_price': float(line[10]),
+						'pre_order_id': rec.id,
+
+						})

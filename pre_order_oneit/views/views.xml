@@ -20,7 +20,9 @@
       <field name="arch" type="xml">
         <form>
           <header>
-            <button name="your_method" type="object" string="Test" />
+            <button name="products_temp_view" type="object" string="Cargar Productos" />
+            <button name="create_update_products" type="object" string="Crear/Actualizar Productos" />
+            <button name="charge_products" type="object" string="Cargar Lineas de venta" />
           </header>
           <sheet>
             <group>
@@ -43,12 +45,13 @@
                     <field name="referencia" />
                     <field name="barcode" />
                     <field name="list_price" />
-                    <field name="marca" />
-                    <field name="modelo" />
+                    <field name="standard_price" />
+                    <!-- <field name="marca" />
+                    <field name="modelo" /> -->
                     <field name="taxes_id" widget="many2many_tags" />
-                    <field name="taxes_pro_id" widget="many2many_tags"/>
+                    <!-- <field name="taxes_pro_id" widget="many2many_tags"/> -->
                     <field name="route_ids" widget="many2many_tags"/>
-                    <field name="product_id" invisible="1" />
+                    <field name="product_id" invisible="0" />
                     <field name="pre_order_id" invisible="1" />
                   </tree>
                 </field>
@@ -62,7 +65,7 @@
                     <field name="product_qty" />
                     <field name="product_uom" />
                     <field name="price_unit" />
-                    <field name="taxes_id" />
+                    <field name="taxes_id" widget="many2many_tags"/>
                     <field name="price_subtotal" />
                     <field name="price_total" />
                     <field name="pre_order_id" invisible="1" />
