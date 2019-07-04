@@ -6,6 +6,7 @@ import xlrd
 import tempfile
 import binascii
 from odoo.exceptions import ValidationError
+from datetime import datetime, timedelta
 
 class TableOrder(models.Model):
 	_name="table.pre.order"
@@ -20,7 +21,7 @@ class TableOrder(models.Model):
 	taxes_id = fields.Many2many('account.tax', string='Taxes', domain=['|', ('active', '=', False), ('active', '=', True)])
 	price_subtotal = fields.Monetary(compute='_compute_amount', string='Subtotal', store=True)
 	price_total = fields.Monetary(compute='_compute_amount', string='Total', store=True)
-	pre_order_id = fields.Many2one("pre.order.purchase")
+	pre_order_id = fields.Many2one("pre.order.purchase", ondelete='cascade')
 	partner_id = fields.Many2one(related="pre_order_id.partner_id", store=True, string="Partner")
 	currency_id = fields.Many2one(related='pre_order_id.currency_id', store=True, string='Currency', readonly=True)
 
@@ -98,25 +99,57 @@ class TableProducts(models.Model):
 	#taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor", default=lambda self: self.env['account.tax'].search([('name', '=', ['IVA(16%) COMPRAS'])]).ids)
 	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega", default=lambda self: self.env['stock.location.route'].search([('name', '=', ['Comprar'])]).ids)
 	product_id = fields.Many2one("product.product", string="Producto")
-	pre_order_id = fields.Many2one("pre.order.purchase")
+	pre_order_id = fields.Many2one("pre.order.purchase", ondelete='cascade')
 
 
 class PreOrderONEIT(models.Model):
 	_name = "pre.order.purchase"
 	_description = "Registro de Pre Orden"
 
-	name = fields.Char(string="Name")
-	partner_id = fields.Many2one("res.partner",string="Cliente")
-	fecha = fields.Date(string="Fecha")
+	name = fields.Char(string="Name", readonly=True)
+	partner_id = fields.Many2one("res.partner",string="Cliente", required=True)
+	fecha = fields.Datetime(string="Fecha", required=True, default=fields.datetime.now())
 	archivo = fields.Binary(string="Archivo Excel")
 	currency_id = fields.Many2one('res.currency', 'Currency', required=True,
 		default=lambda self: self.env.user.company_id.currency_id.id)
 	filename = fields.Char('File Name')
+
+	order_id = fields.Many2one("sale.order", string="Orden Relacionada")
+
 	pre_product_ids = fields.One2many("table.product.temp","pre_order_id",string="Productos")
 	pre_order_ids = fields.One2many("table.pre.order","pre_order_id",string="Lineas de pedido")
 
 	# @api.multi
 	# def create_sale_lines(self):
+
+	@api.model
+	def create(self, values):
+		pso = super(PreOrderONEIT, self).create(values)
+		sequence = self.env['ir.sequence'].search([('name','=','Pre Order Sequence')], limit=1)
+		pso.name = sequence.next_by_id()
+		return pso
+
+	@api.multi
+	def create_sale_order(self):
+		for rec in self:
+			so=self.env['sale.order'].create({
+			'name': self.env['ir.sequence'].next_by_code('sale.order') or _('New'),
+			'partner_id':rec.partner_id.id,
+			'date_order':rec.fecha,
+			'origin':rec.name,
+			'currency_id':rec.currency_id,
+			})
+			rec.order_id = so.id
+
+			for x in rec.pre_order_ids:
+				self.env['sale.order.line'].create({
+				'product_id': x.product_id.id,
+				'product_uom': x.product_id.uom_id.id,
+				'name': x.product_id.name,
+				'price_unit': x.price_unit,
+				'product_uom_qty':x.product_qty,
+				'order_id': so.id
+				})
 
 
 	@api.multi
@@ -148,7 +181,7 @@ class PreOrderONEIT(models.Model):
 						'name': sup.id,
 						'product_tmpl_id': pro.product_tmpl_id.id,
 						'min_qty': 1,
-						'price':pro.list_price,
+						'price':pro.standard_price,
 						})
 				if x.product_id:
 					taxes = []
