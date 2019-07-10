@@ -47,6 +47,7 @@ class TableOrder(models.Model):
 
 		return result
 
+
 	@api.depends('product_qty', 'price_unit', 'taxes_id')
 	def _compute_amount(self):
 		for line in self:
@@ -97,7 +98,7 @@ class TableProducts(models.Model):
 	# modelo = fields.Char(string="Modelo")
 	taxes_id = fields.Many2many("account.tax", string="Impuestos Cliente", default=_default_sale_taxes)
 	#taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor", default=lambda self: self.env['account.tax'].search([('name', '=', ['IVA(16%) COMPRAS'])]).ids)
-	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega", default=lambda self: self.env['stock.location.route'].search([('name', '=', ['Comprar'])]).ids)
+	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega", default=lambda self: self.env['stock.location.route'].search([('name', 'in', ['Comprar','Bajo pedido'])]).ids)
 	product_id = fields.Many2one("product.product", string="Producto")
 	pre_order_id = fields.Many2one("pre.order.purchase", ondelete='cascade')
 
@@ -215,9 +216,9 @@ class PreOrderONEIT(models.Model):
 					fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
 				else:
 					line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
-					print ("==========",str(line[2]))
+					# print ("==========",str(line[2]))
 					pro = self.env['product.product']
-					r = str(line[4])
+					r = str(line[3])
 					m = str(line[0])
 					if pro.search([('default_code','=',r[2:-1])], limit=1):
 						producto = pro.search([('default_code','=',r[2:-1])], limit=1)
@@ -225,7 +226,7 @@ class PreOrderONEIT(models.Model):
 							rec.pre_order_ids.create({
 								'product_id': producto.id,
 								'product_type':producto.type,
-								'product_qty':line[6],
+								'product_qty':line[5],
 								'product_uom':producto.uom_id.id,
 								'price_unit':producto.list_price,
 								'name':producto.name,
@@ -236,7 +237,7 @@ class PreOrderONEIT(models.Model):
 							rec.pre_order_ids.create({
 								'product_id': producto.id,
 								'product_type':producto.type,
-								'product_qty':line[6],
+								'product_qty':line[5],
 								'product_uom':producto.uom_id.id,
 								'price_unit':0,
 								'name':producto.name,
@@ -245,7 +246,7 @@ class PreOrderONEIT(models.Model):
 								})
 					else:
 						raise ValidationError(
-							_('El producto ' +str(line[5])+ ' no ha sido creado'))
+							_('El producto ' +str(line[4])+ ' no ha sido creado'))
 
 	@api.multi
 	def products_temp_view(self):
@@ -262,12 +263,12 @@ class PreOrderONEIT(models.Model):
 					fields = map(lambda row:row.value.encode('utf-8'), sheet.row(row_no))
 				else:
 					line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
-					print ("==========",str(line[2]))  # in this line variable you get the value line by line from excel.
+					# print ("==========",str(line[2]))  # in this line variable you get the value line by line from excel.
 					cat_id = False
 					cat = self.env['product.category']
 					pro = self.env['product.product']
-					c = str(line[3])
-					r = str(line[4])
+					c = str(line[2])
+					r = str(line[3])
 					if pro.search([('default_code','=',r[2:-1])], limit=1):
 						p = pro.search([('default_code','=',r[2:-1])], limit=1)
 						self.pre_product_ids.create({
@@ -292,12 +293,12 @@ class PreOrderONEIT(models.Model):
 								'property_valuation':'manual_periodic'
 								})
 						self.pre_product_ids.create({
-						'name': line[5],
-						'referencia': line[4],
-						'barcode': line[2],
+						'name': line[4],
+						'referencia': line[3],
+						'barcode': line[1],
 						'categoria': cat_id.id,
 						'list_price': float(line[7]),
-						'standard_price': float(line[10]),
+						'standard_price': float(line[6]),
 						'pre_order_id': rec.id,
 
 						})
