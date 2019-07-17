@@ -23,6 +23,7 @@ class TableOrder(models.Model):
 	price_total = fields.Monetary(compute='_compute_amount', string='Total', store=True)
 	pre_order_id = fields.Many2one("pre.order.purchase", ondelete='cascade')
 	partner_id = fields.Many2one(related="pre_order_id.partner_id", store=True, string="Partner")
+
 	currency_id = fields.Many2one(related='pre_order_id.currency_id', store=True, string='Currency', readonly=True)
 
 
@@ -100,6 +101,7 @@ class TableProducts(models.Model):
 	#taxes_pro_id = fields.Many2many("account.tax", string="Impuestos Proveedor", default=lambda self: self.env['account.tax'].search([('name', '=', ['IVA(16%) COMPRAS'])]).ids)
 	route_ids = fields.Many2many("stock.location.route", string="Rutas de entrega", default=lambda self: self.env['stock.location.route'].search([('name', 'in', ['Comprar','Bajo pedido'])]).ids)
 	product_id = fields.Many2one("product.product", string="Producto")
+	is_minor = fields.Char(string='minor')
 	pre_order_id = fields.Many2one("pre.order.purchase", ondelete='cascade')
 
 
@@ -157,49 +159,99 @@ class PreOrderONEIT(models.Model):
 	def create_update_products(self):
 		for rec in self:
 			for x in rec.pre_product_ids:
-				if not x.product_id:
-					taxes = []
-					for t in x.taxes_id:
-						taxes.append(t.id)
-					routes = []
-					for r in x.route_ids:
-						routes.append(r.id)
-					pro = self.env['product.product'].create({
-						'name':x.name,
-						'type':x.type,
-						'categ_id':x.categoria.id,
-						'default_code':x.referencia,
-						'barcode':x.barcode,
-						'list_price':x.list_price,
-						'standard_price':x.standard_price,
-						'taxes_id':[(6, 0, taxes)],
-						'route_ids':[(6, 0, routes)],
-						})
-					x.product_id = pro.id
-					print("Template del producto: ", x.product_id.product_tmpl_id.id)
-					sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
-					supp = x.product_id.seller_ids.create({
-						'name': sup.id,
-						'product_tmpl_id': pro.product_tmpl_id.id,
-						'min_qty': 1,
-						'price':pro.standard_price,
-						})
-				if x.product_id:
-					taxes = []
-					for t in x.taxes_id:
-						taxes.append(t.id)
-					routes = []
-					for r in x.route_ids:
-						routes.append(r.id)
-					x.product_id.name = x.name
-					x.product_id.type = x.type
-					x.product_id.categ_id = x.categoria.id
-					x.product_id.default_code = x.referencia
-					x.product_id.barcode = x.barcode
-					x.product_id.list_price = x.list_price
-					x.product_id.standard_price = x.standard_price
-					x.product_id.taxes_id = [(6, 0, taxes)]
-					x.product_id.route_ids = [(6, 0, routes)]
+				if x.is_minor == 'F':
+					if not x.product_id:
+						taxes = []
+						for t in x.taxes_id:
+							taxes.append(t.id)
+						routes = []
+						for r in x.route_ids:
+							routes.append(r.id)
+						pro = self.env['product.product'].create({
+							'name':x.name,
+							'type':x.type,
+							'categ_id':x.categoria.id,
+							'default_code':x.referencia,
+							'barcode':x.barcode,
+							'list_price':x.list_price,
+							'standard_price':x.standard_price,
+							'taxes_id':[(6, 0, taxes)],
+							'route_ids':[(6, 0, routes)],
+							'tracking':'serial',
+							})
+						x.product_id = pro.id
+						print("Template del producto: ", x.product_id.product_tmpl_id.id)
+						sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
+						supp = x.product_id.seller_ids.create({
+							'name': sup.id,
+							'product_tmpl_id': pro.product_tmpl_id.id,
+							'min_qty': 1,
+							'price':pro.standard_price,
+							})
+					if x.product_id:
+						taxes = []
+						for t in x.taxes_id:
+							taxes.append(t.id)
+						routes = []
+						for r in x.route_ids:
+							routes.append(r.id)
+						x.product_id.name = x.name
+						x.product_id.type = x.type
+						x.product_id.categ_id = x.categoria.id
+						x.product_id.default_code = x.referencia
+						x.product_id.barcode = x.barcode
+						x.product_id.list_price = x.list_price
+						x.product_id.standard_price = x.standard_price
+						x.product_id.taxes_id = [(6, 0, taxes)]
+						x.product_id.route_ids = [(6, 0, routes)]
+						x.product_id.tracking = 'serial'
+				else:
+					if not x.product_id:
+						taxes = []
+						for t in x.taxes_id:
+							taxes.append(t.id)
+						routes = []
+						for r in x.route_ids:
+							routes.append(r.id)
+						pro = self.env['product.product'].create({
+							'name':x.name,
+							'type':x.type,
+							'categ_id':x.categoria.id,
+							'default_code':x.referencia,
+							'barcode':x.barcode,
+							'list_price':x.list_price,
+							'standard_price':x.standard_price,
+							'taxes_id':[(6, 0, taxes)],
+							'route_ids':[(6, 0, routes)],
+							'tracking':'none'
+							})
+						x.product_id = pro.id
+						print("Template del producto: ", x.product_id.product_tmpl_id.id)
+						sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
+						supp = x.product_id.seller_ids.create({
+							'name': sup.id,
+							'product_tmpl_id': pro.product_tmpl_id.id,
+							'min_qty': 1,
+							'price':pro.standard_price,
+							})
+					if x.product_id:
+						taxes = []
+						for t in x.taxes_id:
+							taxes.append(t.id)
+						routes = []
+						for r in x.route_ids:
+							routes.append(r.id)
+						x.product_id.name = x.name
+						x.product_id.type = x.type
+						x.product_id.categ_id = x.categoria.id
+						x.product_id.default_code = x.referencia
+						x.product_id.barcode = x.barcode
+						x.product_id.list_price = x.list_price
+						x.product_id.standard_price = x.standard_price
+						x.product_id.taxes_id = [(6, 0, taxes)]
+						x.product_id.route_ids = [(6, 0, routes)]
+						x.product_id.tracking = 'none'
+						
 
 	@api.multi
 	def charge_products(self):
@@ -222,28 +274,19 @@ class PreOrderONEIT(models.Model):
 					m = str(line[0])
 					if pro.search([('default_code','=',r[2:-1])], limit=1):
 						producto = pro.search([('default_code','=',r[2:-1])], limit=1)
-						if m[2:-1] == 'F':
-							rec.pre_order_ids.create({
-								'product_id': producto.id,
-								'product_type':producto.type,
-								'product_qty':line[5],
-								'product_uom':producto.uom_id.id,
-								'price_unit':producto.list_price,
-								'name':producto.name,
-								'taxes_id':[(6, 0, producto.taxes_id.ids)],
-								'pre_order_id': rec.id,
-								})
-						else:
-							rec.pre_order_ids.create({
-								'product_id': producto.id,
-								'product_type':producto.type,
-								'product_qty':line[5],
-								'product_uom':producto.uom_id.id,
-								'price_unit':0,
-								'name':producto.name,
-								'taxes_id':[(6, 0, producto.taxes_id.ids)],
-								'pre_order_id': rec.id,
-								})
+						rec.pre_order_ids.create({
+							'product_id': producto.id,
+							'product_type':producto.type,
+							'product_qty':line[5],
+							'product_uom':producto.uom_id.id,
+							'price_unit':producto.list_price,
+							'name':producto.name,
+							'taxes_id':[(6, 0, producto.taxes_id.ids)],
+						
+							'pre_order_id': rec.id,
+							
+					
+							})
 					else:
 						raise ValidationError(
 							_('El producto ' +str(line[4])+ ' no ha sido creado'))
@@ -269,6 +312,7 @@ class PreOrderONEIT(models.Model):
 					pro = self.env['product.product']
 					c = str(line[2])
 					r = str(line[3])
+					m = str(line[0])
 					if pro.search([('default_code','=',r[2:-1])], limit=1):
 						p = pro.search([('default_code','=',r[2:-1])], limit=1)
 						self.pre_product_ids.create({
@@ -281,6 +325,7 @@ class PreOrderONEIT(models.Model):
 						'taxes_id':[(6, 0, p.taxes_id.ids)],
 						'route_ids':[(6, 0, p.route_ids.ids)],
 						'pre_order_id': rec.id,
+						'is_minor':m[2:-1],
 						'product_id': p.id,
 						})
 					else:
@@ -299,6 +344,7 @@ class PreOrderONEIT(models.Model):
 						'categoria': cat_id.id,
 						'list_price': float(line[7]),
 						'standard_price': float(line[6]),
+						'is_minor':m[2:-1],
 						'pre_order_id': rec.id,
 
 						})
