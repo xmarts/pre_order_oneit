@@ -7,6 +7,7 @@ import tempfile
 import binascii
 from odoo.exceptions import ValidationError
 from datetime import datetime, timedelta
+from random import randint
 
 class TableOrder(models.Model):
 	_name="table.pre.order"
@@ -157,6 +158,7 @@ class PreOrderONEIT(models.Model):
 
 	@api.multi
 	def create_update_products(self):
+		barcode_gen = 0
 		for rec in self:
 			for x in rec.pre_product_ids:
 				if x.is_minor == 'F':
@@ -167,7 +169,11 @@ class PreOrderONEIT(models.Model):
 						routes = []
 						for r in x.route_ids:
 							routes.append(r.id)
-						pro = self.env['product.product'].create({
+						barcode_gen = randint(0, 400000) + randint(0, 500000)
+						name_ini = x.name[0:3]
+						barcode_format = name_ini + str(barcode_gen)
+						busq_barcode = self.env['product.product'].search([('barcode','=',barcode_gen)], limit=1)
+						vals = {
 							'name':x.name,
 							'type':x.type,
 							'categ_id':x.categoria.id,
@@ -178,9 +184,11 @@ class PreOrderONEIT(models.Model):
 							'taxes_id':[(6, 0, taxes)],
 							'route_ids':[(6, 0, routes)],
 							'tracking':'serial',
-							})
+							}
+						pro = self.env['product.product'].create(vals)
 						x.product_id = pro.id
 						print("Template del producto: ", x.product_id.product_tmpl_id.id)
+						print("****** Valores 1 " + str(vals))
 						sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
 						supp = x.product_id.seller_ids.create({
 							'name': sup.id,
@@ -213,7 +221,10 @@ class PreOrderONEIT(models.Model):
 						routes = []
 						for r in x.route_ids:
 							routes.append(r.id)
-						pro = self.env['product.product'].create({
+						barcode_gen = randint(0, 400000) + randint(0, 500000)
+						name_ini = x.name[0:3]
+						barcode_format = name_ini + str(barcode_gen)
+						vals = {
 							'name':x.name,
 							'type':x.type,
 							'categ_id':x.categoria.id,
@@ -224,9 +235,11 @@ class PreOrderONEIT(models.Model):
 							'taxes_id':[(6, 0, taxes)],
 							'route_ids':[(6, 0, routes)],
 							'tracking':'none'
-							})
+							}
+						pro = self.env['product.product'].create(vals)
 						x.product_id = pro.id
 						print("Template del producto: ", x.product_id.product_tmpl_id.id)
+						print("****** Valores 2 " + str(vals))
 						sup = self.env['res.partner'].search([('name','=','Proveedor Pendiente')], limit=1)
 						supp = x.product_id.seller_ids.create({
 							'name': sup.id,
@@ -270,17 +283,19 @@ class PreOrderONEIT(models.Model):
 					line = list(map(lambda row:isinstance(row.value, str) and row.value.encode('utf-8') or str(row.value), sheet.row(row_no)))
 					# print ("==========",str(line[2]))
 					pro = self.env['product.product']
-					r = str(line[3])
+					pro_temp = self.env['product.template']
+					r = str(line[4])
 					m = str(line[0])
-					if pro.search([('default_code','=',r[2:-1])], limit=1):
-						producto = pro.search([('default_code','=',r[2:-1])], limit=1)
+					if pro_temp.search([('name','=',r[2:-1])], limit=1):
+						pro_temp = self.env['product.template'].search([('name','=',r[2:-1])], limit = 1)
+						producto = pro.search([('product_tmpl_id','=',pro_temp.id)], limit=1)
 						rec.pre_order_ids.create({
 							'product_id': producto.id,
 							'product_type':producto.type,
 							'product_qty':line[5],
 							'product_uom':producto.uom_id.id,
 							'price_unit':producto.list_price,
-							'name':producto.name,
+							'name':pro_temp.name,
 							'taxes_id':[(6, 0, producto.taxes_id.ids)],
 						
 							'pre_order_id': rec.id,
@@ -310,11 +325,13 @@ class PreOrderONEIT(models.Model):
 					cat_id = False
 					cat = self.env['product.category']
 					pro = self.env['product.product']
+					pro_temp = self.env['product.template']
 					c = str(line[2])
-					r = str(line[3])
+					r = str(line[4])
 					m = str(line[0])
-					if pro.search([('default_code','=',r[2:-1])], limit=1):
-						p = pro.search([('default_code','=',r[2:-1])], limit=1)
+					if pro_temp.search([('name','=',r[2:-1])], limit=1):
+						p_temp = pro_temp.search([('name','=',r[2:-1])], limit=1)
+						p = pro.search([('product_tmpl_id','=',p_temp.id)], limit=1)
 						self.pre_product_ids.create({
 						'name': p.name,
 						'referencia': p.default_code,
@@ -329,6 +346,9 @@ class PreOrderONEIT(models.Model):
 						'product_id': p.id,
 						})
 					else:
+						barcode_gen = randint(0, 700000) + randint(0, 900000)
+						pref_name = str(line[4][0:3])
+						barcode_format = str(pref_name[2:-1]) + "-" + str(barcode_gen)
 						if cat.search([('name','=',c[2:-1])], limit=1):
 							cat_id = cat.search([('name','=',c[2:-1])], limit=1)
 						else:
@@ -337,10 +357,15 @@ class PreOrderONEIT(models.Model):
 								'property_cost_method':'standard',
 								'property_valuation':'manual_periodic'
 								})
+						search_temp = self.env['table.product.temp'].search([('barcode','=',barcode_format)], limit = 1)
+						if search_temp:
+							barcode_gen = randint(0, 700000) + randint(0, 900000)
+							pref_name = str(line[4][0:3])
+							barcode_format = str(pref_name[2:-1]) + "-" + str(barcode_gen)
 						self.pre_product_ids.create({
 						'name': line[4],
 						'referencia': line[3],
-						'barcode': line[1],
+						'barcode': barcode_format,
 						'categoria': cat_id.id,
 						'list_price': float(line[7]),
 						'standard_price': float(line[6]),
