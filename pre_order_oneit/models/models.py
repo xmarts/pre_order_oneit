@@ -158,7 +158,6 @@ class PreOrderONEIT(models.Model):
 
 	@api.multi
 	def create_update_products(self):
-		barcode_gen = 0
 		for rec in self:
 			for x in rec.pre_product_ids:
 				if x.is_minor == 'F':
@@ -169,10 +168,6 @@ class PreOrderONEIT(models.Model):
 						routes = []
 						for r in x.route_ids:
 							routes.append(r.id)
-						barcode_gen = randint(0, 400000) + randint(0, 500000)
-						name_ini = x.name[0:3]
-						barcode_format = name_ini + str(barcode_gen)
-						busq_barcode = self.env['product.product'].search([('barcode','=',barcode_gen)], limit=1)
 						vals = {
 							'name':x.name,
 							'type':x.type,
@@ -221,9 +216,6 @@ class PreOrderONEIT(models.Model):
 						routes = []
 						for r in x.route_ids:
 							routes.append(r.id)
-						barcode_gen = randint(0, 400000) + randint(0, 500000)
-						name_ini = x.name[0:3]
-						barcode_format = name_ini + str(barcode_gen)
 						vals = {
 							'name':x.name,
 							'type':x.type,
